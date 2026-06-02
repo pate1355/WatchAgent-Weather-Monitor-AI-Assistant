@@ -1,0 +1,28 @@
+---
+description: Event records, repository layer, and structured logging for WatchAgent
+globs: src/watchagent/events/**,src/watchagent/storage/**
+alwaysApply: false
+---
+
+# Events and Storage Rules
+
+## Event records
+
+Every stored notable event must include:
+
+- `event_type`, `city` (nullable for cross-city events), `occurred_at`, `reason`, and `metadata` (JSON dict with thresholds, deltas, or peer context).
+- Human-readable `title` and `description` so an operator understands what happened without reading code.
+
+## Database access
+
+- All reads/writes go through `Repository` in `storage/repo.py` — routes and poller must not use raw SQL in handlers.
+- Deduplicate readings via the unique constraint on `(city, observation_time)`; handle `IntegrityError` and treat as a no-op.
+
+## Logging
+
+- When persisting an event, log at **INFO** with structured keys: `city` and `event_type`.
+- Detection logic lives in `events/detector.py`; keep WMO category helpers in `events/wmo.py`.
+
+## Cooldowns
+
+- Respect `event_cooldown_minutes` per `(city, event_type)` before firing the same event type again.

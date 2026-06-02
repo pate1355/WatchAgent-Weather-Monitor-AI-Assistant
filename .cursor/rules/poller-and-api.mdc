@@ -1,0 +1,23 @@
+---
+description: Poller fetch failures and HTTP API conventions for WatchAgent
+globs: src/watchagent/poller/**,src/watchagent/api/**
+alwaysApply: false
+---
+
+# Poller and API Rules
+
+## Open-Meteo fetch failures
+
+When a poller fetch fails:
+
+- Log at **WARNING** with structured fields: `city`, `http_status` (if available), and `retry_count` (attempt number starting at 1).
+- Retry up to `poller_max_retries` with exponential backoff (`poller_retry_base_seconds * 2^(attempt-1)`).
+- **Do not raise** out of the poller loop for a single-city failure; use `asyncio.gather(..., return_exceptions=True)` so other cities continue.
+- **Never insert partial rows** — only persist a reading after a successful parse of the full `current` object.
+
+## HTTP API
+
+- Expose exactly: `GET /health`, `GET /readings`, `GET /events`.
+- Validate `city` against `CITY_NAMES` (Ottawa, Toronto, Vancouver); return 400 for unknown cities.
+- Default `limit=50`, order **most recent first**.
+- Use Pydantic response models in `api/schemas.py`; keep field names stable for graders.
