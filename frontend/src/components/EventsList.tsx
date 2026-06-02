@@ -13,6 +13,7 @@ const EVENT_COLORS: Record<string, string> = {
   high_wind: "var(--accent-purple)",
   conditions_shift: "var(--accent-green)",
   regional_contrast: "var(--accent-orange)",
+  blizzard_warning: "var(--accent-blue)",
 };
 
 export function EventsList({ events }: Props) {
