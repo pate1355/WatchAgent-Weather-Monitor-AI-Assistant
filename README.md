@@ -4,23 +4,46 @@ Weather monitor for three Canadian cities (Ottawa, Toronto, Vancouver). Polls [O
 
 ## Architecture
 
+End-to-end flow: Open-Meteo → poller → database → API → dashboard.
+
 ```
-Open-Meteo API
-      │
-      ▼
-┌─────────────┐     new readings      ┌──────────────┐
-│   Poller    │ ────────────────────► │  PostgreSQL  │
-│  (async)    │                       │  readings +  │
-└─────────────┘                       │    events    │
-      │                               └──────┬───────┘
-      │ event detector                       │
-      └──────────────────────────────────────┤
-                                             ▼
-                                      ┌─────────────┐
-                                      │   FastAPI   │
-                                      │  :8000      │
-                                      └─────────────┘
+                         ┌─────────────────────────────────────────┐
+                         │              Docker Compose              │
+                         │                                          │
+  Open-Meteo API         │  ┌──────────┐      ┌──────────────────┐  │
+       │                 │  │  Poller  │      │    PostgreSQL    │  │
+       │  GET /forecast  │  │ (async,  │─────►│  readings table  │  │
+       └────────────────►│  │ in app)  │      │  events table    │  │
+                         │  └────┬─────┘      └────────▲─────────┘  │
+                         │       │ event detector       │           │
+                         │       └──────────────────────┤           │
+                         │                              │           │
+                         │                    ┌─────────┴─────────┐ │
+                         │                    │  FastAPI backend  │ │
+                         │                    │  app container    │ │
+                         │                    │  :8000            │ │
+                         │                    └─────────▲─────────┘ │
+                         │                              │           │
+                         │         proxy /health,       │           │
+                         │         /readings, /events   │           │
+                         │                    ┌─────────┴─────────┐ │
+                         │                    │  React frontend   │ │
+  Browser ──────────────►│                    │  nginx + static   │ │
+  http://localhost:3000  │                    │  :80 → host :3000 │ │
+                         │                    └───────────────────┘ │
+                         └─────────────────────────────────────────┘
 ```
+
+| Component | Location | Role |
+| --- | --- | --- |
+| **Poller** | `src/watchagent/poller/` | Fetches three cities on an interval; deduplicates by `(city, observation_time)` |
+| **Event detector** | `src/watchagent/events/` | Runs on each new reading; writes notable events with cooldowns |
+| **PostgreSQL** | `db` service | Persistent storage (`pgdata` volume) |
+| **FastAPI** | `src/watchagent/api/` | `GET /health`, `/readings`, `/events` |
+| **Frontend** | `frontend/` (Vite + React + TypeScript) | Dashboard: stats, readings per city, events; auto-refresh every 30s |
+| **nginx** | `frontend/nginx.conf` | Serves the built UI and proxies API paths to `app:8000` |
+
+**Local frontend dev:** Vite on `:5173` proxies API routes to `:8000` (no nginx container required).
 
 ## Quick start
 
@@ -78,11 +101,19 @@ Thresholds are configurable via environment variables (see `.env.example`).
 
 ## Technology choices
 
+**Backend**
+
 - **FastAPI** — typed routes, automatic OpenAPI, async-friendly lifespan for the poller
 - **PostgreSQL** — durable storage with a named Docker volume; supports the analysis skill’s SQL aggregations
 - **SQLAlchemy 2** — ORM + repository pattern for testable data access
 - **httpx** — async HTTP client; easy to mock in tests
-- **Single container** — API and poller share one process (simpler ops for this scope)
+- **Single app container** — API and poller share one process (simpler ops for this scope)
+
+**Frontend**
+
+- **React + TypeScript** — typed UI components and API client
+- **Vite** — fast dev server with proxy to the API; production build for Docker
+- **nginx** — serves static assets in Compose and reverse-proxies `/health`, `/readings`, `/events` to the backend
 
 ## Tests
 
