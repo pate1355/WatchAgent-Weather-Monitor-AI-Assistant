@@ -139,6 +139,14 @@ def test_conditions_shift_fires(repo, detector):
     assert any(e["event_type"] == "conditions_shift" for e in events)
 
 
+def test_blizzard_warning_fires(repo, detector):
+    t0 = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    r = _insert(repo, _reading("Ottawa", t0, -10.0, precip=2.0, wind=45.0))
+
+    events = detector.evaluate_new_reading(r)
+    assert any(e["event_type"] == "blizzard_warning" for e in events)
+
+
 def test_regional_contrast_fires(repo, detector):
     now = datetime.now(timezone.utc)
     _insert(repo, _reading("Ottawa", now, 30.0))

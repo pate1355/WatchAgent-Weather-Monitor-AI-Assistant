@@ -21,6 +21,7 @@ class EventDetector:
         events.extend(self._check_heavy_precipitation(reading))
         events.extend(self._check_high_wind(reading))
         events.extend(self._check_conditions_shift(reading))
+        events.extend(self._check_blizzard_warning(reading))
         self._persist_events(events)
         return events
 
@@ -209,6 +210,30 @@ class EventDetector:
                 "reading_id": reading.id,
             }
         ]
+
+    def _check_blizzard_warning(self, reading: Reading) -> list[dict]:
+        if self._on_cooldown(reading.city, "blizzard_warning", reading.observation_time):
+            return []
+        
+        # Blizzard conditions: temp <= -5°C, wind >= 40 km/h, and some precipitation
+        if reading.temperature_2m <= -5.0 and reading.wind_speed_10m >= 40.0 and reading.precipitation > 0:
+            return [
+                {
+                    "city": reading.city,
+                    "occurred_at": reading.observation_time,
+                    "event_type": "blizzard_warning",
+                    "title": f"Blizzard Warning in {reading.city}",
+                    "description": f"Compound event: Temp {reading.temperature_2m:.1f}°C, Wind {reading.wind_speed_10m:.1f} km/h, Precip {reading.precipitation:.1f} mm.",
+                    "reason": "Severe winter conditions detected: Temperature ≤ -5°C, Wind ≥ 40 km/h, and active precipitation.",
+                    "metadata": {
+                        "temperature": reading.temperature_2m,
+                        "wind_speed_kmh": reading.wind_speed_10m,
+                        "precipitation_mm": reading.precipitation,
+                    },
+                    "reading_id": reading.id,
+                }
+            ]
+        return []
 
     def _check_regional_contrast(self) -> list[dict]:
         latest = self.repo.get_latest_readings_all_cities()
