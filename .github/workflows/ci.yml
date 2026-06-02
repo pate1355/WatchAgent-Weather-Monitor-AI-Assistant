@@ -16,7 +16,7 @@ jobs:
         run: pip install -e ".[dev]"
       - name: Run tests
         env:
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: "sqlite:///:memory:"
           ENABLE_POLLER: "false"
         run: pytest -v
 
