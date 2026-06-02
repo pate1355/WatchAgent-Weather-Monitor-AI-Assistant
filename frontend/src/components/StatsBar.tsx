@@ -15,7 +15,12 @@ export function StatsBar({ health, loading, lastUpdated }: Props) {
         </span>
         <div>
           <h1>WatchAgent</h1>
-          <p className="subtitle">Canadian weather monitor · Ottawa · Toronto · Vancouver</p>
+          <p className="subtitle">
+            Canadian weather monitor · Ottawa · Toronto · Vancouver ·{" "}
+            <a href="http://localhost:8000/docs" target="_blank" rel="noreferrer" style={{color: "var(--text-primary)", textDecoration: "underline"}}>
+              API Docs
+            </a>
+          </p>
         </div>
       </div>
       <div className="stats-row">
